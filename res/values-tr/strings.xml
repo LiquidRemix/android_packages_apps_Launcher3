@@ -197,7 +197,7 @@
     <string name="show_swipeup_arrow_summary">Alt panelin üst kısmında hızlı yukarı kaydırma göstergesini göster</string>
     <!-- Hide/Show search bars -->
     <string name="bottom_search_bar_title">Alt arama çubuğu</string>
-    <string name=""bottom_search_bar_summary">Alt panelin altında arama çubuğunu göster</string>
+    <string name="bottom_search_bar_summary">Alt panelin altında arama çubuğunu göster</string>
     <string name="top_search_bar_title">Üst arama çubuğu</string>
     <string name="top_search_bar_summary">Uygulama çekmecesinin üstünde arama çubuğunu göster</string>
     <!-- Weather widget -->
