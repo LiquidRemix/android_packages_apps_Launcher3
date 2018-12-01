@@ -151,4 +151,6 @@
 
     <!-- Name of an icon pack. -->
     <string name="iconPackPackageDefault" translatable="false">""</string>
+    
+    <item name="workspace_page_container" type="id" />
 </resources>
