@@ -41,7 +41,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <string name="icon_pack_none">Nenhum</string>
     <!-- Icon shape -->
     
-    <string name="icon_shape_override_label_custom">formato dos Icones</string>
+    <string name="icon_shape_override_label_custom">Formato dos ícones</string>
     <string name="icon_shape_rounded_square">Cantos arredondados</string>
     <!-- Icon mask -->
     
