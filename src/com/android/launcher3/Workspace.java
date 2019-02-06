@@ -58,8 +58,7 @@ import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.widget.Toast;
 
-import com.android.internal.util.du.ActionUtils;
-import com.android.internal.util.du.Utils;
+import com.android.internal.util.liquid.LiquidUtils;
 
 import com.android.launcher3.Launcher.LauncherOverlay;
 import com.android.launcher3.LauncherAppWidgetHost.ProviderChangedListener;
@@ -335,28 +334,28 @@ public class Workspace extends PagedView<WorkspacePageIndicator>
             case 0: // Stock
                 break;
             case 1: // Screen off
-                ActionUtils.switchScreenOff(getContext());
+                LiquidUtils.switchScreenOff(getContext());
                 break;
             case 2: // Flashlight
-                ActionUtils.toggleCameraFlash();
+                LiquidUtils.toggleCameraFlash();
                 break;
             case 3: // Google search
                 launchGoogleSearch(getContext());
                 break;
             case 4: // Volume panel
-                ActionUtils.toggleVolumePanel(getContext());
+                LiquidUtils.toggleVolumePanel(getContext());
                 break;
             case 5: // Clear notifications
-                ActionUtils.clearAllNotifications();
+                LiquidUtils.clearAllNotifications();
                 break;
             case 6: // Screenshot
-                ActionUtils.takeScreenshot(true);
+                LiquidUtils.takeScreenshot(true);
                 break;
             case 7: // Notifications
-                ActionUtils.toggleNotifications();
+                LiquidUtils.toggleNotifications();
                 break;
             case 8: // QS panel
-                ActionUtils.toggleQsPanel();
+                LiquidUtils.toggleQsPanel();
                 break;
         }
     }
@@ -3561,7 +3560,7 @@ public class Workspace extends PagedView<WorkspacePageIndicator>
         launchIntent.setPackage("com.google.android.googlequicksearchbox");
         launchIntent.setClassName("com.google.android.googlequicksearchbox",
                 "com.google.android.googlequicksearchbox.SearchActivity");
-        if (Utils.isPackageInstalled(context,
+        if (LiquidUtils.isPackageInstalled(context,
                 "com.google.android.googlequicksearchbox")) {
             context.startActivity(launchIntent);
         } else {
