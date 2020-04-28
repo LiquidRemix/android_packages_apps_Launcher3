@@ -24,7 +24,6 @@ import static com.android.launcher3.LauncherAppTransitionManagerImpl.INDEX_SHELF
 import static com.android.launcher3.LauncherState.BACKGROUND_APP;
 import static com.android.launcher3.LauncherState.NORMAL;
 import static com.android.launcher3.LauncherState.OVERVIEW;
-import static com.android.launcher3.LauncherStateManager.ANIM_ALL;
 import static com.android.launcher3.anim.Interpolators.ACCEL_2;
 import static com.android.launcher3.anim.Interpolators.ACCEL_DEACCEL;
 import static com.android.launcher3.anim.Interpolators.INSTANT;
@@ -40,7 +39,6 @@ import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Region;
 import android.os.UserHandle;
-import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.animation.Interpolator;
@@ -54,16 +52,15 @@ import com.android.launcher3.Launcher;
 import com.android.launcher3.LauncherAppState;
 import com.android.launcher3.LauncherInitListenerEx;
 import com.android.launcher3.LauncherState;
-import com.android.launcher3.LauncherStateManager;
+import com.android.launcher3.QuickstepAppTransitionManagerImpl;
 import com.android.launcher3.allapps.DiscoveryBounce;
 import com.android.launcher3.anim.AnimatorPlaybackController;
-import com.android.launcher3.anim.AnimatorSetBuilder;
-import com.android.launcher3.testing.TestProtocol;
-import com.android.launcher3.uioverrides.states.OverviewState;
 import com.android.launcher3.userevent.nano.LauncherLogProto;
 import com.android.launcher3.views.FloatingIconView;
 import com.android.quickstep.SysUINavigationMode.Mode;
 import com.android.quickstep.util.LayoutUtils;
+import com.android.quickstep.util.ShelfPeekAnim;
+import com.android.quickstep.util.ShelfPeekAnim.ShelfAnimState;
 import com.android.quickstep.util.StaggeredWorkspaceAnim;
 import com.android.quickstep.views.LauncherRecentsView;
 import com.android.quickstep.views.RecentsView;
@@ -151,16 +148,10 @@ public final class LauncherActivityControllerHelper implements ActivityControlHe
             @NonNull
             @Override
             public RectF getWindowTargetRect() {
-                final int halfIconSize = dp.iconSizePx / 2;
-                final float targetCenterX = dp.availableWidthPx / 2f;
-                final float targetCenterY = dp.availableHeightPx - dp.hotseatBarSizePx;
-
                 if (canUseWorkspaceView) {
                     return iconLocation;
                 } else {
-                    // Fallback to animate to center of screen.
-                    return new RectF(targetCenterX - halfIconSize, targetCenterY - halfIconSize,
-                            targetCenterX + halfIconSize, targetCenterY + halfIconSize);
+                    return HomeAnimationFactory.getDefaultWindowTargetRect(dp);
                 }
             }
 
@@ -175,18 +166,8 @@ public final class LauncherActivityControllerHelper implements ActivityControlHe
 
             @Override
             public void playAtomicAnimation(float velocity) {
-                // Setup workspace with 0 duration to prepare for our staggered animation.
-                LauncherStateManager stateManager = activity.getStateManager();
-                AnimatorSetBuilder builder = new AnimatorSetBuilder();
-                // setRecentsAttachedToAppWindow() will animate recents out.
-                builder.addFlag(AnimatorSetBuilder.FLAG_DONT_ANIMATE_OVERVIEW);
-                stateManager.createAtomicAnimation(BACKGROUND_APP, NORMAL, builder, ANIM_ALL, 0);
-                builder.build().start();
-
-                // Stop scrolling so that it doesn't interfere with the translation offscreen.
-                recentsView.getScroller().forceFinished(true);
-
-                new StaggeredWorkspaceAnim(activity, workspaceView, velocity).start();
+                new StaggeredWorkspaceAnim(activity, velocity, true /* animateOverviewScrim */)
+                        .start();
             }
         };
     }
@@ -194,9 +175,6 @@ public final class LauncherActivityControllerHelper implements ActivityControlHe
     @Override
     public AnimationFactory prepareRecentsUI(Launcher activity, boolean activityVisible,
             boolean animateActivity, Consumer<AnimatorPlaybackController> callback) {
-        if (TestProtocol.sDebugTracing) {
-            Log.d(TestProtocol.NO_OVERVIEW_EVENT_TAG, "prepareRecentsUI");
-        }
         final LauncherState startState = activity.getStateManager().getState();
 
         LauncherState resetState = startState;
@@ -211,11 +189,10 @@ public final class LauncherActivityControllerHelper implements ActivityControlHe
         // This ensures then the next swipe up to all-apps starts from scroll 0.
         activity.getAppsView().reset(false /* animate */);
 
-        // Optimization, hide the all apps view to prevent layout while initializing
-        activity.getAppsView().getContentView().setVisibility(View.GONE);
-
         return new AnimationFactory() {
-            private ShelfAnimState mShelfState;
+            private final ShelfPeekAnim mShelfAnim =
+                    ((QuickstepAppTransitionManagerImpl) activity.getAppTransitionManager())
+                            .getShelfPeekAnim();
             private boolean mIsAttachedToWindow;
 
             @Override
@@ -244,30 +221,7 @@ public final class LauncherActivityControllerHelper implements ActivityControlHe
             @Override
             public void setShelfState(ShelfAnimState shelfState, Interpolator interpolator,
                     long duration) {
-                if (mShelfState == shelfState) {
-                    return;
-                }
-                mShelfState = shelfState;
-                activity.getStateManager().cancelStateElementAnimation(INDEX_SHELF_ANIM);
-                if (mShelfState == ShelfAnimState.CANCEL) {
-                    return;
-                }
-                float shelfHiddenProgress = BACKGROUND_APP.getVerticalProgress(activity);
-                float shelfOverviewProgress = OVERVIEW.getVerticalProgress(activity);
-                // Peek based on default overview progress so we can see hotseat if we're showing
-                // that instead of predictions in overview.
-                float defaultOverviewProgress = OverviewState.getDefaultVerticalProgress(activity);
-                float shelfPeekingProgress = shelfHiddenProgress
-                        - (shelfHiddenProgress - defaultOverviewProgress) * 0.25f;
-                float toProgress = mShelfState == ShelfAnimState.HIDE
-                        ? shelfHiddenProgress
-                        : mShelfState == ShelfAnimState.PEEK
-                                ? shelfPeekingProgress
-                                : shelfOverviewProgress;
-                Animator shelfAnim = activity.getStateManager()
-                        .createStateElementAnimation(INDEX_SHELF_ANIM, toProgress);
-                shelfAnim.setInterpolator(interpolator);
-                shelfAnim.setDuration(duration).start();
+                mShelfAnim.setShelfState(shelfState, interpolator, duration);
             }
 
             @Override
@@ -282,22 +236,12 @@ public final class LauncherActivityControllerHelper implements ActivityControlHe
                         INDEX_RECENTS_FADE_ANIM, attached ? 1 : 0);
 
                 int runningTaskIndex = recentsView.getRunningTaskIndex();
-                if (runningTaskIndex == 0) {
+                if (runningTaskIndex == recentsView.getTaskViewStartIndex()) {
                     // If we are on the first task (we haven't quick switched), translate recents in
                     // from the side. Calculate the start translation based on current scale/scroll.
                     float currScale = recentsView.getScaleX();
                     float scrollOffsetX = recentsView.getScrollOffset();
-
-                    float offscreenX = NORMAL.getOverviewScaleAndTranslation(activity).translationX;
-                    // The first task is hidden, so offset by its width.
-                    int firstTaskWidth = recentsView.getTaskViewAt(0).getWidth();
-                    offscreenX -= (firstTaskWidth + recentsView.getPageSpacing()) * currScale;
-                    // Offset since scale pushes tasks outwards.
-                    offscreenX += firstTaskWidth * (currScale - 1) / 2;
-                    offscreenX = Math.max(0, offscreenX);
-                    if (recentsView.isRtl()) {
-                        offscreenX = -offscreenX;
-                    }
+                    float offscreenX = recentsView.getOffscreenTranslationX(currScale);
 
                     float fromTranslationX = attached ? offscreenX - scrollOffsetX : 0;
                     float toTranslationX = attached ? 0 : offscreenX - scrollOffsetX;
@@ -365,8 +309,7 @@ public final class LauncherActivityControllerHelper implements ActivityControlHe
     private void playScaleDownAnim(AnimatorSet anim, Launcher launcher, LauncherState fromState,
             LauncherState endState) {
         RecentsView recentsView = launcher.getOverviewPanel();
-        TaskView v = recentsView.getTaskViewAt(recentsView.getCurrentPage());
-        if (v == null) {
+        if (recentsView.getCurrentPageTaskView() == null) {
             return;
         }
 
@@ -394,7 +337,11 @@ public final class LauncherActivityControllerHelper implements ActivityControlHe
             // recents as a whole needs to translate further to keep up with the app window.
             TaskView runningTaskView = recentsView.getRunningTaskView();
             if (runningTaskView == null) {
-                runningTaskView = recentsView.getTaskViewAt(recentsView.getCurrentPage());
+                runningTaskView = recentsView.getCurrentPageTaskView();
+                if (runningTaskView == null) {
+                    // There are no task views in LockTask mode when Overview is enabled.
+                    return;
+                }
             }
             TimeInterpolator oldInterpolator = translateY.getInterpolator();
             Rect fallbackInsets = launcher.getDeviceProfile().getInsets();

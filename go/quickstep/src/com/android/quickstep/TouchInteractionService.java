@@ -180,4 +180,8 @@ public class TouchInteractionService extends Service {
         }
         return mMyBinder;
     }
+
+    public static boolean isInitialized() {
+        return true;
+    }
 }
